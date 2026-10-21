@@ -57,7 +57,8 @@ func TestWrite(t *testing.T) {
 		FlareSystemsManager: common.HexToAddress("0xA90Db6D10F856799b10ef2A77EBCbF460aC71e52"),
 		Relay:               common.HexToAddress("0x5017728F117501A24EF9C3756C07f0d564598596"),
 		VoterRegistry:       common.HexToAddress("0x6a0AF07b7972177B176d3D422555cbc98DfDe914"),
-		DB:                  DB{Host: "db", Port: 3306, Database: "indexer", Username: "u", Password: `p"w\`},
+		DB:                  &DB{Host: "db", Port: 3306, Database: "indexer", Username: "u", Password: `p"w\`},
+		RPC:                 "https://rpc.example/ext/C/rpc",
 		Tunnel:              true,
 	}
 	require.NoError(t, s.Write(c, key, "directkey"))
@@ -76,8 +77,10 @@ func TestWrite(t *testing.T) {
 	var cfg map[string]any
 	_, err = toml.DecodeFile(filepath.Join(s.Dir, "proxy.toml"), &cfg)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []string{"chain_id", "redis_port", "db", "logging", "addresses", "ports", "direct"}, keys(cfg))
+	assert.ElementsMatch(t, []string{"chain_id", "redis_port", "chain", "db", "logging", "addresses", "ports", "direct"}, keys(cfg))
 	assert.Equal(t, int64(114), cfg["chain_id"])
+	assert.Equal(t, map[string]any{"source": "indexer"}, cfg["chain"], "the database wins over the RPC")
+	assert.Equal(t, map[string]any{"level": "INFO", "format": "console"}, cfg["logging"])
 	assert.Equal(t, map[string]any{"host": "db", "port": int64(3306), "database": "indexer", "username": "u", "password": `p"w\`}, cfg["db"])
 	assert.Equal(t, map[string]any{"internal": "6661", "external": "6662"}, cfg["ports"])
 	assert.Equal(t, map[string]any{"enable": true}, cfg["direct"])
@@ -145,6 +148,31 @@ func TestWrite(t *testing.T) {
 	got, err = s.LoadState()
 	require.NoError(t, err)
 	assert.Nil(t, got)
+}
+
+func TestWriteRPC(t *testing.T) {
+	t.Parallel()
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	// $ and " #" would be mangled in proxy.env
+	rpc := "https://rpc.example/ext/C/rpc?x-apikey=s3cr$t #x"
+	c := Config{Image: "fce/template", ChainID: 114, ExtensionID: big.NewInt(1), RPC: rpc}
+	s := For(t.TempDir(), "coston2", "/fork", "template")
+	require.NoError(t, s.Write(c, key, "k"))
+
+	var cfg map[string]any
+	_, err = toml.DecodeFile(filepath.Join(s.Dir, "proxy.toml"), &cfg)
+	require.NoError(t, err)
+	assert.NotContains(t, keys(cfg), "db")
+	assert.Equal(t, map[string]any{"source": "rpc", "url": rpc}, cfg["chain"])
+	for _, f := range []string{"proxy.env", "compose.json"} {
+		b, err := os.ReadFile(filepath.Join(s.Dir, f))
+		require.NoError(t, err)
+		assert.NotContains(t, string(b), "s3cr", f)
+	}
+
+	c.RPC = ""
+	require.ErrorContains(t, For(t.TempDir(), "coston2", "/fork", "template").Write(c, key, "k"), "no chain source")
 }
 
 func TestTunnelURL(t *testing.T) {

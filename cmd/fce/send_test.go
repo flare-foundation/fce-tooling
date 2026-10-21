@@ -81,3 +81,15 @@ func TestCheckURL(t *testing.T) {
 		assert.Error(t, checkURL(u), u)
 	}
 }
+
+func TestCheckProxyRPC(t *testing.T) {
+	t.Parallel()
+	for _, u := range []string{"https://coston2-api.flare.network/ext/C/rpc", "http://host.docker.internal:9650/ext/bc/C/rpc", "ws://203.0.113.7:9650"} {
+		assert.NoError(t, checkProxyRPC(u), u)
+	}
+	for _, u := range []string{"http://127.0.0.1:8545", "http://localhost:9650/ext/bc/C/rpc", "http://[::1]:8545", "http://127.0.0.53", "http://key@127.0.0.1:8545"} {
+		err := checkProxyRPC(u)
+		require.Error(t, err, u)
+		assert.NotContains(t, err.Error(), "key@", u)
+	}
+}

@@ -13,7 +13,7 @@
 //	fce governance (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] -signers addresses -threshold n dir
 //	fce disable-version (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] (-hash codehash | -test) [-platform names] dir
 //	fce status (-chain name | -rpc url) dir
-//	fce run (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] -indexer-db file [-url url] [-port n] [-detach] [-i-know-what-im-doing] dir
+//	fce run (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] [-indexer-db file] [-url url] [-port n] [-detach] [-i-know-what-im-doing] dir
 //	fce stop (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] dir
 //	fce send (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] [-value wei] [-timeout duration] dir (signature [args...] | calldata)
 //	fce direct (-chain name | -rpc url) [-timeout duration] dir opType opCommand [message]
@@ -48,13 +48,13 @@
 // registry can't undo it. status compares the record with the chain.
 //
 // run starts a test machine of the extension in dir, tee-node in test mode
-// with tee-proxy beside it, reading the indexer database -indexer-db names;
-// it registers the machine, takes it to production, and shows its logs until
-// interrupted. Stopping it, on Ctrl-C or with stop after -detach, pauses the
-// machine on chain and removes it. send calls the extension's contract and
-// waits for the result of each instruction the call sent; direct posts a
-// direct action to the running machine and waits for its result. Both check
-// the TEE's and the proxy's signatures.
+// with tee-proxy beside it, which reads the chain through the RPC, or from the
+// indexer database -indexer-db names; it registers the machine, takes it to
+// production, and shows its logs until interrupted. Stopping it, on Ctrl-C or
+// with stop after -detach, pauses the machine on chain and removes it. send
+// calls the extension's contract and waits for the result of each instruction
+// the call sent; direct posts a direct action to the running machine and waits
+// for its result. Both check the TEE's and the proxy's signatures.
 package main
 
 import (
@@ -83,7 +83,7 @@ const usage = `usage:
   fce governance (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] -signers addresses -threshold n dir
   fce disable-version (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] (-hash codehash | -test) [-platform names] dir
   fce status (-chain name | -rpc url) dir
-  fce run (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] -indexer-db file [-url url] [-port n] [-detach] [-i-know-what-im-doing] dir
+  fce run (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] [-indexer-db file] [-url url] [-port n] [-detach] [-i-know-what-im-doing] dir
   fce stop (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] dir
   fce send (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] [-value wei] [-timeout duration] dir (signature [args...] | calldata)
   fce direct (-chain name | -rpc url) [-timeout duration] dir opType opCommand [message]

@@ -24,11 +24,11 @@ test-fork:
 	@FCE_FORK_URL=$${FCE_FORK_URL:-https://coston2-api.flare.network/ext/C/rpc} go test -count=1 -timeout 30m -run '^TestFork$$' ./cmd/fce
 
 # the template end to end on Coston2: deploy, run behind a public quick tunnel, send, direct, stop.
-# Sends real transactions: needs a funded keystore (FCE_LIVE_KEYSTORE, FCE_LIVE_PASSWORD_FILE), an indexer
-# database's settings (FCE_LIVE_INDEXER_DB), Docker, forge and the network.
+# Sends real transactions: needs a funded keystore (FCE_LIVE_KEYSTORE, FCE_LIVE_PASSWORD_FILE), Docker, forge
+# and the network. tee-proxy reads the chain through the public RPC, or from FCE_LIVE_INDEXER_DB's database if set.
 test-live:
-	@test -n "$$FCE_LIVE_KEYSTORE" -a -n "$$FCE_LIVE_PASSWORD_FILE" -a -n "$$FCE_LIVE_INDEXER_DB" || \
-		{ echo "set FCE_LIVE_KEYSTORE, FCE_LIVE_PASSWORD_FILE and FCE_LIVE_INDEXER_DB" >&2; exit 2; }
+	@test -n "$$FCE_LIVE_KEYSTORE" -a -n "$$FCE_LIVE_PASSWORD_FILE" || \
+		{ echo "set FCE_LIVE_KEYSTORE and FCE_LIVE_PASSWORD_FILE" >&2; exit 2; }
 	@go test -count=1 -timeout 60m -run '^TestLive$$' ./cmd/fce
 
 tidy:

@@ -20,15 +20,15 @@ import (
 // deploy, add-version -test, governance, run -detach behind a quick tunnel,
 // send, direct and stop. It sends real transactions signed with the keystore
 // FCE_LIVE_KEYSTORE (password in FCE_LIVE_PASSWORD_FILE), and tee-proxy reads
-// the indexer database FCE_LIVE_INDEXER_DB names; make test-live runs it.
+// the chain through the RPC, or from the indexer database FCE_LIVE_INDEXER_DB
+// names if set; make test-live runs it.
 func TestLive(t *testing.T) {
 	ks := os.Getenv("FCE_LIVE_KEYSTORE")
 	if ks == "" {
 		t.Skip("FCE_LIVE_KEYSTORE unset; make test-live runs this")
 	}
-	pw, db := os.Getenv("FCE_LIVE_PASSWORD_FILE"), os.Getenv("FCE_LIVE_INDEXER_DB")
+	pw := os.Getenv("FCE_LIVE_PASSWORD_FILE")
 	require.NotEmpty(t, pw, "FCE_LIVE_PASSWORD_FILE")
-	require.NotEmpty(t, db, "FCE_LIVE_INDEXER_DB")
 	ctx := t.Context()
 	src := os.Getenv("FCE_SCAFFOLD")
 	if src == "" {
@@ -56,7 +56,11 @@ func TestLive(t *testing.T) {
 		// stops a run the test left behind; nothing to do after its own stop
 		_ = run(context.Background(), append(append([]string{"stop"}, key...), ext))
 	})
-	require.Equal(t, 0, run(ctx, append(append([]string{"run"}, key...), "-detach", "-indexer-db", db, ext)))
+	runArgs := append(append([]string{"run"}, key...), "-detach")
+	if db := os.Getenv("FCE_LIVE_INDEXER_DB"); db != "" {
+		runArgs = append(runArgs, "-indexer-db", db)
+	}
+	require.Equal(t, 0, run(ctx, append(runArgs, ext)))
 
 	code, out := fce("send", key, "myCommand(bytes)", hexutil.Encode([]byte("hello")))
 	require.Equal(t, 0, code, out)

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/big"
 	mrand "math/rand/v2"
+	"net"
 	"net/url"
 	"os"
 	"slices"
@@ -51,7 +52,7 @@ type runOpts struct {
 func runCmd(ctx context.Context, args []string) int {
 	var o runOpts
 	extra := func(fs *flag.FlagSet) {
-		fs.StringVar(&o.indexerDB, "indexer-db", "", "a TOML file naming the indexer database tee-proxy reads: host, port, database, username, password")
+		fs.StringVar(&o.indexerDB, "indexer-db", "", "a TOML file naming an indexer database for tee-proxy to read the chain from: host, port, database, username, password; the RPC otherwise")
 		fs.StringVar(&o.url, "url", "", "the machine's public URL, forwarding to tee-proxy's external API (see -port); a cloudflared quick tunnel otherwise")
 		fs.IntVar(&o.port, "port", 0, "the port on 127.0.0.1 for tee-proxy's external API; Docker picks one otherwise")
 		fs.BoolVar(&o.detach, "detach", false, "return once the machine is in production; fce stop stops it")
@@ -96,11 +97,14 @@ func (s *session) run(ctx context.Context, o runOpts) (err error) {
 	if err != nil {
 		return err
 	}
-	if o.indexerDB == "" {
-		return errors.New("-indexer-db: tee-proxy reads an indexer's database, and fce runs none")
-	}
-	db, err := stack.ReadDB(o.indexerDB)
-	if err != nil {
+	var db *stack.DB
+	if o.indexerDB != "" {
+		d, err := stack.ReadDB(o.indexerDB)
+		if err != nil {
+			return err
+		}
+		db = &d
+	} else if err := checkProxyRPC(s.c.RPC); err != nil {
 		return err
 	}
 	if o.url != "" {
@@ -121,7 +125,7 @@ func (s *session) run(ctx context.Context, o runOpts) (err error) {
 	}
 	cfg := stack.Config{
 		Image: "fce/" + s.ext.Dir, ChainID: s.c.ID.Uint64(), ExtensionID: id, Owner: s.w.Address,
-		Signers: g.Signers, Threshold: g.SignersThreshold, DB: db, Port: o.port, Tunnel: o.url == "",
+		Signers: g.Signers, Threshold: g.SignersThreshold, DB: db, RPC: s.c.RPC, Port: o.port, Tunnel: o.url == "",
 	}
 	for name, a := range map[string]*common.Address{"FlareSystemsManager": &cfg.FlareSystemsManager, "Relay": &cfg.Relay, "VoterRegistry": &cfg.VoterRegistry} {
 		if *a, err = s.c.Lookup(ctx, name); err != nil {
@@ -254,6 +258,20 @@ func checkURL(raw string) error {
 	return nil
 }
 
+// checkProxyRPC refuses an RPC tee-proxy can't reach from its container; it
+// never quotes the URL, which may carry an API key.
+func checkProxyRPC(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return errors.New("the RPC's URL doesn't parse")
+	}
+	h := u.Hostname()
+	if ip := net.ParseIP(h); h == "localhost" || ip != nil && ip.IsLoopback() {
+		return errors.New("the RPC is on loopback, out of tee-proxy's reach in its container: use one it can reach, or -indexer-db")
+	}
+	return nil
+}
+
 func (s *session) startMachine(ctx context.Context, st stack.Stack, state *stack.State, o runOpts, id *big.Int, proxyID common.Address) error {
 	if err := st.Up(ctx); err != nil {
 		return err
@@ -363,7 +381,7 @@ func (s *session) waitInfo(ctx context.Context, st stack.Stack, local machine.Pr
 	}
 	var info *teetypes.SignedTeeInfoResponse
 	var epoch *big.Int
-	// tee-proxy gives up on the node after 5 minutes; it may wait longer for the indexer
+	// tee-proxy gives up on the node after 5 minutes; it may wait longer for its chain source
 	err = poll(ctx, st, time.Now().Add(10*time.Minute), 2*time.Second, func() (bool, error) {
 		i, err := local.Info(ctx)
 		if err != nil {
@@ -379,7 +397,7 @@ func (s *session) waitInfo(ctx context.Context, st stack.Stack, local machine.Pr
 		if info == nil {
 			return nil, errors.New("tee-proxy served no TEE info in 10 minutes; its logs: docker logs " + st.Project + "-proxy-1")
 		}
-		return nil, fmt.Errorf("the machine has signing policy %d, the chain is at reward epoch %s: is the indexer current?", info.TeeInfo.LastSigningPolicyID, epoch)
+		return nil, fmt.Errorf("the machine has signing policy %d, the chain is at reward epoch %s: is tee-proxy's chain source current?", info.TeeInfo.LastSigningPolicyID, epoch)
 	}
 	if err != nil {
 		return nil, err

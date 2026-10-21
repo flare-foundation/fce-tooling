@@ -56,7 +56,7 @@ fce add-version (-chain name | -rpc url) (-account name | -keystore file) [-pass
 fce governance (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] -signers addresses -threshold n dir
 fce disable-version (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] (-hash codehash | -test) [-platform names] dir
 fce status (-chain name | -rpc url) dir
-fce run (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] -indexer-db file [-url url] [-port n] [-detach] [-i-know-what-im-doing] dir
+fce run (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] [-indexer-db file] [-url url] [-port n] [-detach] [-i-know-what-im-doing] dir
 fce stop (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] dir
 fce send (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] [-value wei] [-timeout duration] dir (signature [args...] | calldata)
 fce direct (-chain name | -rpc url) [-timeout duration] dir opType opCommand [message]
@@ -122,16 +122,18 @@ It runs on the chain itself, not a fork: the chain's data providers deliver the 
 It needs:
 
 - Docker with Compose.
-- An indexer's database.
-  tee-proxy reads the chain's signing policies and voters from a flare-system-c-chain-indexer database, and fce runs no indexer: a new one would take too long to catch up.
-  `-indexer-db` names a TOML file with the database's `host`, `port`, `database`, `username` and `password`; keep it private.
+- A source for the chain's signing policies and voters, which tee-proxy reads.
+  By default it reads them through the RPC fce uses, the network's public one or `-rpc`, which must be reachable from tee-proxy's container, so not on loopback.
+  tee-proxy then takes the initial signing policy and the voters' keys from that RPC unverified, and they become the TEE's root of trust: fine for a test machine, not for production.
+  `-indexer-db` reads them from a flare-system-c-chain-indexer database instead; fce runs no indexer, since a new one would take too long to catch up.
+  It names a TOML file with the database's `host`, `port`, `database`, `username` and `password`; keep it private.
 - A public URL, where the data providers and the availability check reach the machine.
   fce opens a cloudflared quick tunnel by default; `-url` takes your own, which must forward to tee-proxy's external API, on the `127.0.0.1` port `-port` sets.
 
 `fce run` checks the chain first, builds the image with `make image`, and starts tee-node with it, tee-proxy and Redis.
 Only tee-proxy's external API leaves the stack: on `127.0.0.1`, and through the tunnel if fce opened one.
 tee-proxy signs with a key fce makes for the run, and takes direct actions with an API key fce makes too.
-Both keys and the indexer's password stay in the run's directory, `fce/run` under your user cache directory, readable only by you.
+The two keys, the RPC's URL and the indexer's password stay in the run's directory, `fce/run` under your user cache directory, readable only by you.
 
 fce then registers the machine, which attests the chain's challenge; asks one of the system's machines to check that it is available; and puts it in production.
 Registering and the availability check pay fees, and each step pays gas.
@@ -161,6 +163,6 @@ make test-live    # deploy, run, send, direct and stop the template on Coston2, 
 Requirements: Go 1.26.9 or higher, and gcc for the cgo run.
 The runner's tests use the scaffold's library as their reference extension; `go.mod` points at a local `../scaffold` checkout for now.
 `make test-fork` registers that checkout's extensions on a fork, so it also needs Foundry (anvil and forge), Docker and the network; `FCE_FORK_URL` and `FCE_SCAFFOLD` override the chain and the checkout.
-`make test-live` sends real transactions on Coston2, deploying a new extension each time: it needs a funded keystore account, `FCE_LIVE_KEYSTORE`, its password file, `FCE_LIVE_PASSWORD_FILE`, and an indexer database file as `fce run` takes, `FCE_LIVE_INDEXER_DB`.
+`make test-live` sends real transactions on Coston2, deploying a new extension each time: it needs a funded keystore account, `FCE_LIVE_KEYSTORE`, and its password file, `FCE_LIVE_PASSWORD_FILE`; tee-proxy reads Coston2's public RPC, or the indexer database `FCE_LIVE_INDEXER_DB` names, a file as `fce run` takes.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.

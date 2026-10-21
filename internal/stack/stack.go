@@ -1,7 +1,7 @@
 // Package stack runs a test machine for an extension with Docker Compose: the
 // extension's image in test mode, tee-proxy, Redis and, unless the developer
-// brings a public URL, a cloudflared quick tunnel. tee-proxy reads an external
-// indexer's database; the stack runs none.
+// brings a public URL, a cloudflared quick tunnel. tee-proxy reads the chain
+// through its RPC, or from an external indexer's database; the stack runs none.
 package stack
 
 import (
@@ -30,7 +30,7 @@ import (
 
 // The images the stack runs besides the extension's, pinned by digest.
 const (
-	ProxyImage  = "ghcr.io/flare-foundation/tee-proxy:v0.0.25@sha256:3904c261f3e825ed6acb5430d27f5bd082cdeef8ca37318654cc4e21bb683f17"
+	ProxyImage  = "ghcr.io/flare-foundation/tee-proxy:v0.0.26-alpha.0@sha256:825c8ea3dd29fe233f27f1ce5f29a575a309960bdd289d514e6cde7b14019939"
 	RedisImage  = "redis:8.8.3-alpine@sha256:0b2b77d3ea5078274795e3177cdbdada8b96316684a38911d528534ed679b5ec"
 	TunnelImage = "cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c"
 )
@@ -76,9 +76,12 @@ type Config struct {
 	Owner     common.Address
 	Signers   []common.Address
 	Threshold uint64
-	// The contracts tee-proxy follows through the indexer.
+	// The contracts tee-proxy follows on chain.
 	FlareSystemsManager, Relay, VoterRegistry common.Address
-	DB                                        DB
+	// DB is the indexer database tee-proxy reads; without it, tee-proxy reads the chain at RPC.
+	DB *DB
+	// RPC is the chain's JSON-RPC URL; it may carry an API key.
+	RPC string
 	// Port is the host port, on 127.0.0.1, of tee-proxy's external API; 0 lets Docker pick one.
 	Port int
 	// Tunnel starts a cloudflared quick tunnel to tee-proxy's external API.
@@ -139,8 +142,13 @@ func (s Stack) Write(c Config, proxyKey *ecdsa.PrivateKey, directKey string) err
 	return nil
 }
 
-// proxyConfig is tee-proxy v0.0.25's config; it refuses unknown keys.
+// proxyConfig is tee-proxy v0.0.26-alpha.0's config; it refuses unknown keys.
 func proxyConfig(c Config) ([]byte, error) {
+	type chain struct {
+		Source string `toml:"source"`
+		// in the 0600 config, not proxy.env: Compose expands $ and cuts " #" in env files
+		URL string `toml:"url,omitempty"`
+	}
 	type addresses struct {
 		FlareSystemsManager string `toml:"flare_systems_manager"`
 		Relay               string `toml:"relay"`
@@ -151,8 +159,8 @@ func proxyConfig(c Config) ([]byte, error) {
 		External string `toml:"external"`
 	}
 	type logging struct {
-		Level   string `toml:"level"`
-		Console bool   `toml:"console"`
+		Level  string `toml:"level"`
+		Format string `toml:"format"`
 	}
 	type direct struct {
 		Enable bool `toml:"enable"`
@@ -160,7 +168,8 @@ func proxyConfig(c Config) ([]byte, error) {
 	cfg := struct {
 		ChainID   uint64    `toml:"chain_id"`
 		RedisPort string    `toml:"redis_port"`
-		DB        DB        `toml:"db"`
+		Chain     chain     `toml:"chain"`
+		DB        *DB       `toml:"db,omitempty"`
 		Logging   logging   `toml:"logging"`
 		Addresses addresses `toml:"addresses"`
 		Ports     ports     `toml:"ports"`
@@ -168,11 +177,18 @@ func proxyConfig(c Config) ([]byte, error) {
 	}{
 		ChainID:   c.ChainID,
 		RedisPort: "redis:6379",
+		Chain:     chain{Source: "indexer"},
 		DB:        c.DB,
-		Logging:   logging{Level: "INFO", Console: true},
+		Logging:   logging{Level: "INFO", Format: "console"},
 		Addresses: addresses{c.FlareSystemsManager.Hex(), c.Relay.Hex(), c.VoterRegistry.Hex()},
 		Ports:     ports{strconv.Itoa(internalPort), strconv.Itoa(ExternalPort)},
 		Direct:    direct{Enable: true}, // the key comes from DIRECT_API_KEY
+	}
+	if c.DB == nil {
+		if c.RPC == "" {
+			return nil, errors.New("no chain source for tee-proxy: an indexer database or an RPC")
+		}
+		cfg.Chain = chain{Source: "rpc", URL: c.RPC}
 	}
 	var b bytes.Buffer
 	if err := toml.NewEncoder(&b).Encode(cfg); err != nil {
