@@ -162,7 +162,7 @@ make test-fork    # deploy, add-version, governance, disable-version, status and
 make test-live    # deploy, run, send, direct and stop the template on Coston2, with real funds
 ```
 
-Requirements: Go 1.26.9 or higher, and gcc for the cgo run.
+Requirements: Go 1.26.10 or higher, and gcc for the cgo run.
 The runner's tests use the scaffold's library as their reference extension; `go.mod` points at a local `../scaffold` checkout for now.
 `make test-fork` registers that checkout's extensions on a fork, so it also needs Foundry (anvil and forge), Docker and the network; `FCE_FORK_URL` and `FCE_SCAFFOLD` override the chain and the checkout.
 `make test-live` sends real transactions on Coston2, deploying a new extension each time: it needs a funded keystore account, `FCE_LIVE_KEYSTORE`, and its password file, `FCE_LIVE_PASSWORD_FILE`; tee-proxy reads Coston2's public RPC, or the indexer database `FCE_LIVE_INDEXER_DB` names, a file as `fce run` takes.
