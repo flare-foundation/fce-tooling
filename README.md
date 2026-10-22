@@ -90,6 +90,7 @@ The fork's `fce-version` file names the `fce` versions it works with, as a versi
 - `fce send` calls the extension's contract, at the address in its deployment record, with a function's signature and its arguments, such as `'myCommand(bytes)' 0x1234`, or with calldata, such as `cast calldata` prints for tuples and arrays.
   It finds the fee by simulating the call, raising the value until `ExtensionBase`'s `InsufficientFee` no longer reverts it; `-value` sets it instead.
   Then it waits for the result of each instruction the call sent, at each machine it went to, checks the TEE's and the proxy's signatures, and prints it; a call that sends none, such as submitting a result, ends once mined.
+  Each step shows the time since the transaction was sent, and `fce direct`'s since the action was posted; it asks the proxy for results every 250 ms, and the RPC for the transaction's receipt every second.
 - `fce direct` posts a direct action to the machine `fce run` started, the op type and command as names, such as `MY_EXTENSION MY_DIRECT_COMMAND`, and the message as hex; then it waits for the result as `fce send` does.
 
 ## Deploying

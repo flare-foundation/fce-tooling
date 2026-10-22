@@ -79,6 +79,7 @@ func (s *session) send(ctx context.Context, sig string, args []string, value str
 		return err
 	}
 	opts.Value = v
+	start := time.Now()
 	tx, err := bind.NewBoundContract(to, abi.ABI{}, s.c.Client, s.c.Client, s.c.Client).RawTransact(opts, data)
 	if err != nil {
 		return fmt.Errorf("sending: %w", chain.Explain(err, abis...))
@@ -87,7 +88,7 @@ func (s *session) send(ctx context.Context, sig string, args []string, value str
 	if err != nil {
 		return err
 	}
-	stepOK("send", "%s, value %s wei", tx.Hash(), v)
+	stepOK("send", "%s, value %s wei, mined %s after sending", tx.Hash(), v, since(start))
 
 	f, err := instructions.NewInstructionsFilterer(s.c.Manager, s.c.Client)
 	if err != nil {
@@ -112,7 +113,7 @@ func (s *session) send(ctx context.Context, sig string, args []string, value str
 		fmt.Printf("instruction %s: %s %s\n", id, chain.String32(e.OpType), chain.String32(e.OpCommand))
 		for _, m := range e.TeeMachines {
 			p := machine.New(m.Url, 30*time.Second)
-			if err := waitResult(ctx, p, id, teetypes.Threshold, timeout, s.c.ID.Uint64(), m.TeeId, m.TeeProxyId); err != nil {
+			if err := waitResult(ctx, p, id, teetypes.Threshold, timeout, s.c.ID.Uint64(), m.TeeId, m.TeeProxyId, start); err != nil {
 				fmt.Printf("FAIL  TEE %s at %s: %s\n", m.TeeId, m.Url, indent(err))
 				failed = true
 			}
@@ -152,20 +153,25 @@ func (s *session) direct(ctx context.Context, args []string, timeout time.Durati
 		}
 	}
 	p := machine.New(state.URL, 30*time.Second)
+	start := time.Now()
 	id, err := p.Direct(ctx, key, opType, opCommand, msg)
 	if err != nil {
 		return err
 	}
 	stepOK("direct", "%s %s queued as %s at %s", args[0], args[1], id, state.URL)
-	if err := waitResult(ctx, p, id, teetypes.Submit, timeout, state.ChainID, *state.TeeID, *state.ProxyID); err != nil {
+	if err := waitResult(ctx, p, id, teetypes.Submit, timeout, state.ChainID, *state.TeeID, *state.ProxyID, start); err != nil {
 		return err
 	}
 	return nil
 }
 
+// resultPoll is how often waitResult asks the proxy; short, so the times it prints are close.
+const resultPoll = 250 * time.Millisecond
+
 // waitResult waits for an action's final result, showing pending and partial
-// ones, checks the TEE's and the proxy's signatures, and prints it.
-func waitResult(ctx context.Context, p machine.Proxy, id common.Hash, tag teetypes.SubmissionTag, timeout time.Duration, chainID uint64, tee, proxy common.Address) error {
+// ones, checks the TEE's and the proxy's signatures, and prints it, each with
+// the time since start, when the action was sent.
+func waitResult(ctx context.Context, p machine.Proxy, id common.Hash, tag teetypes.SubmissionTag, timeout time.Duration, chainID uint64, tee, proxy common.Address, start time.Time) error {
 	deadline := time.Now().Add(timeout)
 	var seen uint8
 	var last error
@@ -179,11 +185,11 @@ func waitResult(ctx context.Context, p machine.Proxy, id common.Hash, tag teetyp
 			if st := r.Result.Status; st >= 2 {
 				if st != seen {
 					seen = st
-					fmt.Printf("      status %d (%s)\n", st, r.Result.Log)
+					fmt.Printf("      status %d (%s), %s after sending\n", st, r.Result.Log, since(start))
 				}
 				break
 			}
-			return printResult(r, tee)
+			return printResult(r, tee, start)
 		case !errors.Is(err, machine.ErrNotFound):
 			last = err
 		}
@@ -196,17 +202,17 @@ func waitResult(ctx context.Context, p machine.Proxy, id common.Hash, tag teetyp
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(2 * time.Second):
+		case <-time.After(resultPoll):
 		}
 	}
 }
 
-func printResult(r *teetypes.ActionResponse, tee common.Address) error {
+func printResult(r *teetypes.ActionResponse, tee common.Address, start time.Time) error {
 	res := r.Result
 	if res.Status != 1 {
-		return fmt.Errorf("status %d: %s", res.Status, res.Log)
+		return fmt.Errorf("status %d, %s after sending: %s", res.Status, since(start), res.Log)
 	}
-	stepOK("result", "status 1 from TEE %s, signed; %s %s, version %s", tee, chain.String32(res.OPType), chain.String32(res.OPCommand), res.Version)
+	stepOK("result", "status 1 from TEE %s, signed, %s after sending; %s %s, version %s", tee, since(start), chain.String32(res.OPType), chain.String32(res.OPCommand), res.Version)
 	fmt.Printf("      data %s\n", res.Data)
 	return nil
 }
@@ -379,4 +385,9 @@ func parseArg(t abi.Type, s string) (any, error) {
 	default:
 		return nil, fmt.Errorf("type %s isn't supported; pass calldata instead", t)
 	}
+}
+
+// since is the time since start, rounded for printing.
+func since(start time.Time) time.Duration {
+	return time.Since(start).Round(100 * time.Millisecond)
 }
