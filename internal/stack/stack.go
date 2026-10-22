@@ -35,6 +35,10 @@ const (
 	TunnelImage = "cloudflare/cloudflared:2026.9.3@sha256:072c067d25ccbe61d46e18f0d0723255f2bb5304f7317caa95b27031520ff92c"
 )
 
+// Platform is the platform a stack runs as unless told otherwise: the TEE's,
+// and the only one tee-proxy is built for; Docker emulates it on other hosts.
+const Platform = "linux/amd64"
+
 // tee-proxy's ports inside the stack: internal for tee-node, external for everyone else.
 const (
 	internalPort = 6661
@@ -91,6 +95,8 @@ type Config struct {
 // Stack is a Compose project kept in a private directory, which also holds tee-proxy's key.
 type Stack struct {
 	Dir, Project string
+	// Platform is Compose's DOCKER_DEFAULT_PLATFORM; empty leaves the environment's.
+	Platform string
 }
 
 // For is the stack of extension dir in the fork at root on chain, under base.
@@ -98,7 +104,7 @@ func For(base, chain, root, dir string) Stack {
 	sum := sha256.Sum256([]byte(root + "\x00" + dir))
 	key := strings.ToLower(chain + "-" + dir)
 	key = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(key, "-") + "-" + hex.EncodeToString(sum[:4])
-	return Stack{Dir: filepath.Join(base, key), Project: "fce-" + key}
+	return Stack{Dir: filepath.Join(base, key), Project: "fce-" + key, Platform: Platform}
 }
 
 // Base is where stacks live: the user's cache directory.
@@ -254,6 +260,10 @@ func (s Stack) compose(c Config) map[string]any {
 func (s Stack) cmd(ctx context.Context, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, "docker", append([]string{"compose", "-p", s.Project, "-f", filepath.Join(s.Dir, "compose.json")}, args...)...)
 	cmd.Dir = s.Dir
+	if s.Platform != "" {
+		// last, so it overrides the user's own: exec keeps a key's last value
+		cmd.Env = append(os.Environ(), "DOCKER_DEFAULT_PLATFORM="+s.Platform)
+	}
 	return cmd
 }
 

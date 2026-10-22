@@ -56,7 +56,7 @@ fce add-version (-chain name | -rpc url) (-account name | -keystore file) [-pass
 fce governance (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] -signers addresses -threshold n dir
 fce disable-version (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] (-hash codehash | -test) [-platform names] dir
 fce status (-chain name | -rpc url) dir
-fce run (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] [-indexer-db file] [-url url] [-port n] [-detach] [-i-know-what-im-doing] dir
+fce run (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] [-indexer-db file] [-url url] [-port n] [-detach] [-host-platform] [-i-know-what-im-doing] dir
 fce stop (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] dir
 fce send (-chain name | -rpc url) (-account name | -keystore file) [-password-file file] [-value wei] [-timeout duration] dir (signature [args...] | calldata)
 fce direct (-chain name | -rpc url) [-timeout duration] dir opType opCommand [message]
@@ -122,6 +122,8 @@ It runs on the chain itself, not a fork: the chain's data providers deliver the 
 It needs:
 
 - Docker with Compose.
+  The stack runs as `linux/amd64`, the TEE's platform and the only one tee-proxy is built for; Docker emulates it on other hosts, such as Apple Silicon Macs, slowly but well enough for a test.
+  `-host-platform` leaves the platform to Docker instead: the host's, or `DOCKER_DEFAULT_PLATFORM`'s.
 - A source for the chain's signing policies and voters, which tee-proxy reads.
   By default it reads them through the RPC fce uses, the network's public one or `-rpc`, which must be reachable from tee-proxy's container, so not on loopback.
   tee-proxy then takes the initial signing policy and the voters' keys from that RPC unverified, and they become the TEE's root of trust: fine for a test machine, not for production.

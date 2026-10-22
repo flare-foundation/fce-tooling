@@ -44,9 +44,9 @@ const (
 )
 
 type runOpts struct {
-	indexerDB, url string
-	port           int
-	detach, relax  bool
+	indexerDB, url              string
+	port                        int
+	detach, relax, hostPlatform bool
 }
 
 func runCmd(ctx context.Context, args []string) int {
@@ -56,6 +56,7 @@ func runCmd(ctx context.Context, args []string) int {
 		fs.StringVar(&o.url, "url", "", "the machine's public URL, forwarding to tee-proxy's external API (see -port); a cloudflared quick tunnel otherwise")
 		fs.IntVar(&o.port, "port", 0, "the port on 127.0.0.1 for tee-proxy's external API; Docker picks one otherwise")
 		fs.BoolVar(&o.detach, "detach", false, "return once the machine is in production; fce stop stops it")
+		fs.BoolVar(&o.hostPlatform, "host-platform", false, "leave the containers' platform to Docker, the host's or DOCKER_DEFAULT_PLATFORM's, instead of "+stack.Platform+"; tee-proxy has no other build yet")
 		fs.BoolVar(&o.relax, relaxFlag, false, relaxUsage)
 	}
 	return sessionCmd(ctx, "run", args, true, extra, func(s *session) error { return s.run(ctx, o) })
@@ -115,6 +116,9 @@ func (s *session) run(ctx context.Context, o runOpts) (err error) {
 	st, state, err := s.stack()
 	if err != nil {
 		return err
+	}
+	if o.hostPlatform {
+		st.Platform = ""
 	}
 	if state != nil || st.Exists() {
 		return fmt.Errorf("%s has a run on %s already, or one that wasn't stopped (%s): fce stop first", s.ext.Dir, s.c.Name, st.Dir)

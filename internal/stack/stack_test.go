@@ -175,6 +175,21 @@ func TestWriteRPC(t *testing.T) {
 	require.ErrorContains(t, For(t.TempDir(), "coston2", "/fork", "template").Write(c, key, "k"), "no chain source")
 }
 
+func TestCmdPlatform(t *testing.T) {
+	t.Parallel()
+	s := For(t.TempDir(), "coston2", "/fork", "template")
+	var last string
+	for _, kv := range s.cmd(t.Context(), "up").Env {
+		if v, ok := strings.CutPrefix(kv, "DOCKER_DEFAULT_PLATFORM="); ok {
+			last = v
+		}
+	}
+	assert.Equal(t, "linux/amd64", last, "the one exec uses")
+
+	s.Platform = ""
+	assert.Nil(t, s.cmd(t.Context(), "up").Env, "the environment as it is")
+}
+
 func TestTunnelURL(t *testing.T) {
 	t.Parallel()
 	log := `tunnel-1  | 2026-10-12T12:00:00Z INF Requesting new quick Tunnel on trycloudflare.com...
