@@ -46,6 +46,7 @@ make install
 ```
 
 It runs `go install ./cmd/fce`, which puts `fce` in `GOBIN`, or `GOPATH/bin` when that is unset; keep that directory on your `PATH`.
+Read the scaffold's [Before you install or run anything](https://github.com/flare-foundation/fce-go-scaffold#before-you-install-or-run-anything) first: where to get `fce`, what the repos pin, and which key to sign with.
 
 ## Commands
 
