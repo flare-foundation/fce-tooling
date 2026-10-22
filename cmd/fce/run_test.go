@@ -30,11 +30,7 @@ func TestLive(t *testing.T) {
 	pw := os.Getenv("FCE_LIVE_PASSWORD_FILE")
 	require.NotEmpty(t, pw, "FCE_LIVE_PASSWORD_FILE")
 	ctx := t.Context()
-	src := os.Getenv("FCE_SCAFFOLD")
-	if src == "" {
-		src = filepath.Join("..", "..", "..", "scaffold")
-	}
-	root := copyScaffold(t, src)
+	root := copyScaffold(t, scaffoldDir(t))
 	ext := filepath.Join(root, "template")
 	w, err := chain.Open("", ks, pw)
 	require.NoError(t, err)

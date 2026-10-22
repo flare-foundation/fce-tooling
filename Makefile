@@ -18,7 +18,7 @@ test:
 		echo "$$m: CGO_ENABLED=1 -race"; (cd $$m && CGO_ENABLED=1 go test -race ./...) || exit 1; \
 	done
 
-# deploy, add-version, governance and status on an anvil fork of Coston2, against ../scaffold's template;
+# deploy, add-version, governance and status on an anvil fork of Coston2, against the template of the scaffold go.mod points at;
 # needs anvil, forge, Docker and the network. FCE_FORK_URL and FCE_SCAFFOLD override the defaults.
 test-fork:
 	@FCE_FORK_URL=$${FCE_FORK_URL:-https://coston2-api.flare.network/ext/C/rpc} go test -count=1 -timeout 30m -run '^TestFork$$' ./cmd/fce

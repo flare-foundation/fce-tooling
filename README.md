@@ -23,12 +23,15 @@
 The tooling and the scaffold are tested internally first, from Flare's internal GitLab, before they are published on GitHub.
 Until then, the links to `github.com/flare-foundation/fce-go-scaffold` and `github.com/flare-foundation/fce-tooling` in these docs don't resolve; use the internal GitLab repos in their place.
 
-1. Clone both repos from the internal GitLab, side by side, as `scaffold` and `tooling`; `go.mod` points the tests at `../scaffold`, and `make test-fork` registers its template:
+1. Clone both repos from the internal GitLab, side by side; the defaults are `scaffold` and `tooling`:
 
    ```bash
    git clone <the scaffold's GitLab repo> scaffold
    git clone <the tooling's GitLab repo> tooling
    ```
+
+   Other names work: `fce` needs neither repo beside the other, and only this repo's tests look for the scaffold, where `go.mod` points.
+   If you name the scaffold's directory otherwise, run `go mod edit -replace=github.com/flare-foundation/fce-go-scaffold=../<its name>` here, and don't commit that change.
 
 2. Install `fce` with `make install` in this repo, as [Install](#install) shows; `go install github.com/flare-foundation/fce-tooling/cmd/fce@<version>` works only once it is published.
    Built at a tag such as `v0.1.0` with no local changes, `fce` is that release.
@@ -164,7 +167,7 @@ make test-live    # deploy, run, send, direct and stop the template on Coston2, 
 ```
 
 Requirements: Go 1.26.10 or higher, and gcc for the cgo run.
-The runner's tests use the scaffold's library as their reference extension; `go.mod` points at a local `../scaffold` checkout for now.
+The runner's tests use the scaffold's library as their reference extension; `go.mod` points at a local scaffold checkout for now, `../scaffold` unless you changed it as [Internal use before release](#internal-use-before-release) says.
 `make test-fork` registers that checkout's extensions on a fork, so it also needs Foundry (anvil and forge), Docker and the network; `FCE_FORK_URL` and `FCE_SCAFFOLD` override the chain and the checkout.
 `make test-live` sends real transactions on Coston2, deploying a new extension each time: it needs a funded keystore account, `FCE_LIVE_KEYSTORE`, and its password file, `FCE_LIVE_PASSWORD_FILE`; tee-proxy reads Coston2's public RPC, or the indexer database `FCE_LIVE_INDEXER_DB` names, a file as `fce run` takes.
 

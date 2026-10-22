@@ -89,11 +89,7 @@ func TestFork(t *testing.T) {
 		t.Skip("FCE_FORK_URL unset; make test-fork runs this")
 	}
 	ctx := t.Context()
-	src := os.Getenv("FCE_SCAFFOLD")
-	if src == "" {
-		src = filepath.Join("..", "..", "..", "scaffold")
-	}
-	root := copyScaffold(t, src)
+	root := copyScaffold(t, scaffoldDir(t))
 	rpc := startAnvil(t, url)
 
 	// anvil's first dev account, funded on the fork; only this test uses it
@@ -256,6 +252,23 @@ func TestFork(t *testing.T) {
 	log = capture(t, func() { code = run(ctx, []string{"status", "-rpc", rpc, ext}) })
 	assert.Equal(t, 1, code, log)
 	assert.Contains(t, log, "on chain on [GCP_AMD_SEV]")
+}
+
+// scaffoldDir is the scaffold checkout TestFork and TestLive copy:
+// FCE_SCAFFOLD, or the directory go.mod's replace points at.
+func scaffoldDir(t *testing.T) string {
+	t.Helper()
+	if d := os.Getenv("FCE_SCAFFOLD"); d != "" {
+		return d
+	}
+	out, err := exec.CommandContext(t.Context(), "go", "list", "-m", "-f", "{{.Dir}}", "github.com/flare-foundation/fce-go-scaffold").Output()
+	require.NoError(t, err, "finding the scaffold go.mod points at; FCE_SCAFFOLD sets another")
+	return strings.TrimSpace(string(out))
+}
+
+func TestScaffoldDir(t *testing.T) {
+	t.Parallel()
+	assert.DirExists(t, filepath.Join(scaffoldDir(t), "template"))
 }
 
 // copyScaffold copies the scaffold's tracked files into a temporary fork, committed, and its extensions' Foundry dependencies if installed.
