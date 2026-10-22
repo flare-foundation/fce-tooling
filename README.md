@@ -42,12 +42,14 @@ Until then, the links to `github.com/flare-foundation/fce-go-scaffold` and `gith
 ## Install
 
 ```bash
-make install      # go install ./cmd/fce
+make install
 ```
+
+It runs `go install ./cmd/fce`, which puts `fce` in `GOBIN`, or `GOPATH/bin` when that is unset; keep that directory on your `PATH`.
 
 ## Commands
 
-```bash
+```text
 fce conformance [-i-know-what-im-doing] [flags] dir...
 fce conformance [-i-know-what-im-doing] [flags] [-fixtures dir] -- command [args...]
 fce image dir...
@@ -159,12 +161,10 @@ A recommendation fails too, unless the developer turns on the i-know-what-im-doi
 
 ## Development
 
-```bash
-make lint         # golangci-lint (pinned in the Makefile), and go.mod must be tidy
-make test         # go test with cgo off, then on with the race detector
-make test-fork    # deploy, add-version, governance, disable-version, status and send on an anvil fork of Coston2
-make test-live    # deploy, run, send, direct and stop the template on Coston2, with real funds
-```
+- `make lint`: golangci-lint (pinned in the Makefile), and `go.mod` must be tidy.
+- `make test`: go test with cgo off, then on with the race detector.
+- `make test-fork`: deploy, add-version, governance, disable-version, status and send on an anvil fork of Coston2.
+- `make test-live`: deploy, run, send, direct and stop the template on Coston2, with real funds.
 
 Requirements: Go 1.26.10 or higher, and gcc for the cgo run.
 The runner's tests use the scaffold's library as their reference extension; `go.mod` points at a local scaffold checkout for now, `../scaffold` unless you changed it as [Internal use before release](#internal-use-before-release) says.
