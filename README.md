@@ -152,6 +152,135 @@ A machine stays in production after it stops running, and sends keep being route
 If pausing fails, fce keeps the run's directory, and `fce stop` tries again; `fce run` refuses to start until then.
 It also refuses while another machine of the extension is in production; that is a recommendation.
 
+### By hand
+
+`fce run` does all of this itself.
+Set the stack up by hand only to run it another way, such as on another host or with tee-proxy settings fce leaves at their defaults; it is the same setup as the files fce writes to the run's directory.
+
+The extension needs what `fce run` needs: a test version, a governance, and an allowed machine owner.
+Build its image with `make image` in your fork, which loads it as `fce/<dir>`, such as `fce/template`.
+
+tee-proxy follows three contracts, which Flare's contract registry names; with `RPC` set to the network's RPC:
+
+```bash
+for name in FlareSystemsManager Relay VoterRegistry; do
+  cast call --rpc-url "$RPC" 0xaD67FE66660Fb8dFE9d6b1b4240d8650e30F6019 'getContractAddressByName(string)(address)' "$name"
+done
+```
+
+In an empty directory, make tee-proxy's key and the API key its `/direct` takes, readable only by you:
+
+```bash
+(umask 077 && printf 'PRIVATE_KEY=%s\nDIRECT_API_KEY=%s\n' "$(openssl rand -hex 32)" "$(openssl rand -hex 32)" > proxy.env)
+```
+
+The key's address, which `cast wallet address` derives, is the proxy id the machine registers with.
+
+Then `proxy.toml`, with the chain's id and the three addresses; keep it private too if the RPC's URL carries a key:
+
+```toml
+chain_id = 114
+redis_port = "redis:6379"
+
+[chain]
+source = "rpc"
+url = "https://coston2-api.flare.network/ext/C/rpc"
+
+[logging]
+level = "INFO"
+format = "console"
+
+[addresses]
+flare_systems_manager = "0x…"
+relay = "0x…"
+voter_registry = "0x…"
+
+[ports]
+internal = "6661"
+external = "6662"
+
+[direct]
+enable = true
+```
+
+To read an indexer's database instead, set `source = "indexer"`, drop `url`, and add a `[db]` table with `host`, `port`, `database`, `username` and `password`.
+
+Then `compose.yaml`, with the extension's id as 32 bytes in hex, the account that will register the machine, and the governance's signers and threshold exactly as on chain, since the machine attests their hash:
+
+```yaml
+services:
+  redis:
+    image: <RedisImage>
+    command: [redis-server, --save, "", --appendonly, "no"]
+  node:
+    image: fce/template
+    pull_policy: never
+    environment:
+      MODE: "1"
+      CHAIN_ID: "114"
+      PROXY_URL: http://proxy:6661
+      INITIAL_OWNER: "0x…"
+      EXTENSION_ID: "0x…"
+      GOVERNANCE_SIGNERS: "0x…,0x…"
+      GOVERNANCE_THRESHOLD: "1"
+      LOG_LEVEL: INFO
+  proxy:
+    image: <ProxyImage>
+    user: "<uid>:<gid>"
+    env_file: [proxy.env]
+    volumes:
+      - ./proxy.toml:/app/config/config.toml:ro
+    ports:
+      - 127.0.0.1:6662:6662
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on: [redis, node]
+  tunnel:
+    image: <TunnelImage>
+    command: [tunnel, --no-autoupdate, --url, http://proxy:6662]
+    depends_on: [proxy]
+```
+
+- The images are the ones [`internal/stack/stack.go`](internal/stack/stack.go) pins by digest: `RedisImage`, `ProxyImage` and `TunnelImage`.
+- `MODE: "1"` is tee-node's test mode, so the machine attests tee-node's test code hash on `TEST_PLATFORM`.
+- `user` is yours, `id -u` and `id -g`, so tee-proxy can read a private `proxy.toml`.
+- Publish only port 6662, tee-proxy's external API, and only on `127.0.0.1`; port 6661 serves tee-node without authentication and stays inside the stack.
+- `host.docker.internal` reaches an indexer's database on your host.
+- Leave out `tunnel` when you bring your own public URL, forwarding to `127.0.0.1:6662`.
+
+Start the stack, check the machine's TEE info, and read the tunnel's URL:
+
+```bash
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose up --detach
+curl -s http://127.0.0.1:6662/info | jq '.teeInfo.lastSigningPolicyId, .machineData'
+docker compose logs tunnel | grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' | grep -v '//api\.'
+```
+
+`/info` answers once tee-proxy has read the chain and tee-node has started, within a few minutes.
+`machineData` shows the extension's id, the owner, the governance's hash and the test code hash; `lastSigningPolicyId` must reach the chain's current reward epoch before the machine registers:
+
+```bash
+cast call --rpc-url "$RPC" <FlareSystemsManager> 'getCurrentRewardEpochId()(uint24)'
+```
+
+fce has no command that registers a machine it didn't start, so taking this one to production means calling FlareTeeManager yourself, as `fce run` does:
+
+1. `register`, with the machine data and its signature from `/info`, the signature's last byte raised by 27, the proxy id, the public URL and the owner, paying the `F_REG` `TEE_ATTESTATION` fee that `calculateFeeByTeeIds` gives.
+   It sets a challenge, which the data providers send the machine as an instruction; the receipt's `TeeInstructionsSent` event gives its id.
+2. Wait until the machine's proxy serves that instruction's result, `GET /action/result/<instructionId>?submissionTag=threshold`, with status 1.
+3. `requestAvailabilityCheckAttestation`, naming a machine of extension 0 in production to check this one, paying the `TeeAvailabilityCheck` fee and that machine's `F_FDC2` `PROVE` fee.
+   Read the check's result from that machine's proxy.
+4. `toProduction`, with the proof decoded from that result, before the challenge expires.
+5. When done, `pause` the machine, then `docker compose down --volumes`; until it is paused, sends keep being routed to it.
+
+`fce send` works with such a machine, since it finds machines on chain; `fce direct` and `fce stop` know only the machines `fce run` started.
+Post direct actions to `http://127.0.0.1:6662/direct` instead, with the API key in an `X-Api-Key` header and the body the scaffold's template README shows.
+
+## Production
+
+`fce` doesn't run production machines yet.
+The scaffold's [docs/production.md](https://github.com/flare-foundation/fce-go-scaffold/blob/main/docs/production.md) drafts running one, a work in progress; it builds on [By hand](#by-hand).
+
 ## Checks
 
 Each check is either required or a recommendation.
