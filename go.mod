@@ -1,13 +1,13 @@
 module github.com/flare-foundation/fce-tooling
 
-go 1.26.10
+go 1.27.4
 
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/ethereum/go-ethereum v1.17.8
 	github.com/flare-foundation/fce-go-scaffold v0.0.0-00010101000000-000000000000
-	github.com/flare-foundation/go-flare-common v1.5.0
-	github.com/flare-foundation/tee-node v0.0.29
+	github.com/flare-foundation/go-flare-common v1.6.0
+	github.com/flare-foundation/tee-node v0.0.30
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/term v0.46.0
 )

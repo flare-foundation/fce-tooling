@@ -18,9 +18,9 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/flare-foundation/go-flare-common/pkg/abicoder"
 	"github.com/flare-foundation/go-flare-common/pkg/contracts/tee/machinemanager"
 	"github.com/flare-foundation/go-flare-common/pkg/signing"
-	"github.com/flare-foundation/go-flare-common/pkg/tee/structs"
 	"github.com/flare-foundation/go-flare-common/pkg/tee/structs/fdc2"
 	"github.com/flare-foundation/tee-node/pkg/fdc"
 	"github.com/flare-foundation/tee-node/pkg/types"
@@ -197,11 +197,11 @@ func Proof(r *types.ActionResponse) (machinemanager.ITeeAvailabilityCheckProof, 
 	}
 	args := fdc2.AttestationTypeArguments[fdc2.AvailabilityCheck]
 	var req fdc2.ITeeAvailabilityCheckRequestBody
-	if err := structs.DecodeTo(args.Request, pr.RequestBody, &req); err != nil {
+	if err := abicoder.DecodeTo(args.Request, pr.RequestBody, &req); err != nil {
 		return proof, fmt.Errorf("decoding the request body: %w", err)
 	}
 	var resp fdc2.ITeeAvailabilityCheckResponseBody
-	if err := structs.DecodeTo(args.Response, pr.ResponseBody, &resp); err != nil {
+	if err := abicoder.DecodeTo(args.Response, pr.ResponseBody, &resp); err != nil {
 		return proof, fmt.Errorf("decoding the response body: %w", err)
 	}
 	proof = machinemanager.ITeeAvailabilityCheckProof{

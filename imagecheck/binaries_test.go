@@ -55,7 +55,7 @@ func TestTeeNodeEnv(t *testing.T) {
 
 // TestTeeNodeImageFiles lists what the pinned tee-node's own image copies in, so a bump that adds a
 // file fails here: the scaffold's image has the binary as /app/tee-node and leaves out the
-// certificate, which tee-node v0.0.29 doesn't read.
+// certificate, which tee-node v0.0.30 doesn't read.
 func TestTeeNodeImageFiles(t *testing.T) {
 	t.Parallel()
 	dir, err := exec.CommandContext(t.Context(), "go", "list", "-m", "-f", "{{.Dir}}", teeNodeModule).Output()

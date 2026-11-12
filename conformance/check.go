@@ -24,7 +24,7 @@ import (
 	"github.com/flare-foundation/tee-node/pkg/types"
 )
 
-// Mirrors tee-node v0.0.29; re-check on every tee-node bump.
+// Mirrors tee-node v0.0.30; re-check on every tee-node bump.
 const (
 	// actionTimeout is how long tee-node waits for an answer, body included (ProxyTimeout).
 	actionTimeout = 2 * time.Second
