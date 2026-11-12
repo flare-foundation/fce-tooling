@@ -30,7 +30,7 @@ import (
 
 // The images the stack runs besides the extension's, pinned by digest.
 const (
-	ProxyImage  = "ghcr.io/flare-foundation/tee-proxy:v0.0.26-alpha.1@sha256:3e2801f518fd5a3537ac8b9063b2e6a6969f88d8bf168f40bfa9c5ea0f86d13c"
+	ProxyImage  = "ghcr.io/flare-foundation/tee-proxy:v0.0.27@sha256:37b58ca8c5780f13e96956cc3381c3fea490dbe56cfdf215181833b8fee1ef81"
 	RedisImage  = "redis:8.8.3-alpine@sha256:0b2b77d3ea5078274795e3177cdbdada8b96316684a38911d528534ed679b5ec"
 	TunnelImage = "cloudflare/cloudflared:2026.10.3@sha256:faa8e0a1475f137c910be6025f43c8e4092fdd35461b31e19fd1390657a1ff39"
 )
@@ -148,7 +148,7 @@ func (s Stack) Write(c Config, proxyKey *ecdsa.PrivateKey, directKey string) err
 	return nil
 }
 
-// proxyConfig is tee-proxy v0.0.26-alpha.1's config; it refuses unknown keys.
+// proxyConfig is tee-proxy v0.0.27's config; it refuses unknown keys.
 func proxyConfig(c Config) ([]byte, error) {
 	type chain struct {
 		Source string `toml:"source"`
