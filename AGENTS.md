@@ -34,8 +34,8 @@ Conformance follows each rule's kind in the scaffold's `docs/extension-contract.
 make lint         # golangci-lint (pinned in the Makefile), and every module's go.mod must be tidy
 make test         # go test, every module, with cgo off, then on with the race detector
 make install      # go install ./cmd/fce
-make test-fork    # the on-chain commands on an anvil fork of Coston2; needs anvil, forge, Docker and the network
-make test-live    # run, send, direct and stop on Coston2; sends real transactions
+make test-fork    # the on-chain commands on an anvil fork of Coston2, and the launcher mirror; needs FCE_SCAFFOLD, anvil, forge, Docker and the network
+make test-live    # run, send, direct and stop on Coston2; needs FCE_SCAFFOLD; sends real transactions
 ```
 
 Before finishing a task, run `make lint` and `make test`; both must pass.

@@ -30,8 +30,7 @@ Until then, the links to `github.com/flare-foundation/fce-go-scaffold` and `gith
    git clone <the tooling's GitLab repo> tooling
    ```
 
-   Other names work: `fce` needs neither repo beside the other, and only this repo's tests look for the scaffold, where `go.mod` points.
-   If you name the scaffold's directory otherwise, run `go mod edit -replace=github.com/flare-foundation/fce-go-scaffold=../<its name>` here, and don't commit that change.
+   Other names work: `fce` needs neither repo beside the other, and only `make test-fork` and `make test-live` here use a scaffold checkout, the one `FCE_SCAFFOLD` names.
 
 2. Install `fce` with `make install` in this repo, as [Install](#install) shows; `go install github.com/flare-foundation/fce-tooling/cmd/fce@<version>` works only once it is published.
    Built at a tag such as `v0.1.0` with no local changes, `fce` is that release.
@@ -297,8 +296,9 @@ A recommendation fails too, unless the developer turns on the i-know-what-im-doi
 - `make test-live`: deploy, run, send, direct and stop the template on Coston2, with real funds.
 
 Requirements: Go 1.27.4 or higher, and gcc for the cgo run.
-The runner's tests use the scaffold's library as their reference extension; `go.mod` points at a local scaffold checkout for now, `../scaffold` unless you changed it as [Internal use before release](#internal-use-before-release) says.
-`make test-fork` registers that checkout's extensions on a fork, so it also needs Foundry (anvil and forge), Docker and the network; `FCE_FORK_URL` and `FCE_SCAFFOLD` override the chain and the checkout.
-`make test-live` sends real transactions on Coston2, deploying a new extension each time: it needs a funded keystore account, `FCE_LIVE_KEYSTORE`, and its password file, `FCE_LIVE_PASSWORD_FILE`; tee-proxy reads Coston2's public RPC, or the indexer database `FCE_LIVE_INDEXER_DB` names, a file as `fce run` takes.
+The runner's tests use the scaffold's library, at the version `go.mod` requires, as their reference extension.
+`make test-fork` and `make test-live` need a scaffold checkout, `FCE_SCAFFOLD`: the module `go.mod` requires has no `launcher/`.
+`make test-fork` registers that checkout's extensions on a fork, and checks that `launcher/` here equals the checkout's, so it also needs Foundry (anvil and forge), Docker and the network; `FCE_FORK_URL` overrides the chain.
+`make test-live` sends real transactions on Coston2, deploying the checkout's template each time: it needs a funded keystore account, `FCE_LIVE_KEYSTORE`, and its password file, `FCE_LIVE_PASSWORD_FILE`; tee-proxy reads Coston2's public RPC, or the indexer database `FCE_LIVE_INDEXER_DB` names, a file as `fce run` takes.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.

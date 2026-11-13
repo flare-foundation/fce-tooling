@@ -40,7 +40,7 @@ The request must:
 ## Setting the environment
 
 Use the Go version specified in [go.mod](go.mod) or newer, and have gcc installed.
-The tests use the scaffold's library as their reference extension, and `go.mod` points at a checkout of the [scaffold](https://github.com/flare-foundation/fce-go-scaffold) beside this repo, `../scaffold` unless you changed it as the README's [Internal use before release](README.md#internal-use-before-release) says.
+The tests use the [scaffold](https://github.com/flare-foundation/fce-go-scaffold)'s library, at the version `go.mod` requires, as their reference extension; `make test-fork` and `make test-live` also need a scaffold checkout, `FCE_SCAFFOLD`.
 
 The repo has two Go modules, the root and `launcher/`.
 Run the `make` targets from the root: they cover both, while a plain `go test ./...` skips `launcher/`.

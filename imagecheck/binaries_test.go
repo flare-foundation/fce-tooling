@@ -78,18 +78,15 @@ func TestTeeNodeImageFiles(t *testing.T) {
 	assert.Equal(t, []string{"/app/server", "/app/assets/google_confidential_space_root.crt"}, files)
 }
 
-const scaffoldModule = "github.com/flare-foundation/fce-go-scaffold"
-
 // TestLauncherMirror keeps launcher/ identical to the scaffold's launcher/, which every image builds.
 func TestLauncherMirror(t *testing.T) {
 	t.Parallel()
-	dir, err := exec.CommandContext(t.Context(), "go", "list", "-m", "-f", "{{.Dir}}", scaffoldModule).Output()
-	require.NoError(t, err)
-	theirs := filepath.Join(strings.TrimSpace(string(dir)), "launcher")
-	if _, err := os.Stat(theirs); err != nil {
-		// a nested module isn't in the scaffold's module zip, only in a checkout go.mod replaces it with
-		t.Skipf("no scaffold launcher at %s", theirs)
+	// a nested module isn't in the scaffold's module zip, so this needs a checkout
+	dir := os.Getenv("FCE_SCAFFOLD")
+	if dir == "" {
+		t.Skip("FCE_SCAFFOLD unset; make test-fork runs this")
 	}
+	theirs := filepath.Join(dir, "launcher")
 	ours := filepath.Join("..", "launcher")
 
 	names := func(d string) []string {

@@ -254,21 +254,13 @@ func TestFork(t *testing.T) {
 	assert.Contains(t, log, "on chain on [GCP_AMD_SEV]")
 }
 
-// scaffoldDir is the scaffold checkout TestFork and TestLive copy:
-// FCE_SCAFFOLD, or the directory go.mod's replace points at.
+// scaffoldDir is the scaffold checkout TestFork and TestLive copy, FCE_SCAFFOLD;
+// the module go.mod requires is no checkout and lacks launcher/.
 func scaffoldDir(t *testing.T) string {
 	t.Helper()
-	if d := os.Getenv("FCE_SCAFFOLD"); d != "" {
-		return d
-	}
-	out, err := exec.CommandContext(t.Context(), "go", "list", "-m", "-f", "{{.Dir}}", "github.com/flare-foundation/fce-go-scaffold").Output()
-	require.NoError(t, err, "finding the scaffold go.mod points at; FCE_SCAFFOLD sets another")
-	return strings.TrimSpace(string(out))
-}
-
-func TestScaffoldDir(t *testing.T) {
-	t.Parallel()
-	assert.DirExists(t, filepath.Join(scaffoldDir(t), "template"))
+	d := os.Getenv("FCE_SCAFFOLD")
+	require.NotEmpty(t, d, "FCE_SCAFFOLD: a scaffold checkout")
+	return d
 }
 
 // copyScaffold copies the scaffold's tracked files into a temporary fork, committed, and its extensions' Foundry dependencies if installed.

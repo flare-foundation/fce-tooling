@@ -5,7 +5,7 @@ go 1.27.4
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/ethereum/go-ethereum v1.17.8
-	github.com/flare-foundation/fce-go-scaffold v0.0.0-00010101000000-000000000000
+	github.com/flare-foundation/fce-go-scaffold v0.0.1
 	github.com/flare-foundation/go-flare-common v1.6.0
 	github.com/flare-foundation/tee-node v0.0.30
 	github.com/stretchr/testify v1.12.1
@@ -44,6 +44,3 @@ require (
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 )
-
-// the scaffold's library is the runner tests' reference extension; local until the scaffold is published
-replace github.com/flare-foundation/fce-go-scaffold => ../scaffold
