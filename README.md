@@ -18,34 +18,19 @@
 > So far it checks and builds extensions: conformance, the image, its reproducibility and the image checks; it encrypts secrets to a TEE; it deploys and registers extensions on a chain; and it runs a test machine of an extension and sends it instructions and direct actions.
 > Setting up wallets comes later.
 
-## Internal use before release
-
-The tooling and the scaffold are tested internally first, from Flare's internal GitLab, before they are published on GitHub.
-Until then, the links to `github.com/flare-foundation/fce-go-scaffold` and `github.com/flare-foundation/fce-tooling` in these docs don't resolve; use the internal GitLab repos in their place.
-
-1. Clone both repos from the internal GitLab, side by side; the defaults are `scaffold` and `tooling`:
-
-   ```bash
-   git clone <the scaffold's GitLab repo> scaffold
-   git clone <the tooling's GitLab repo> tooling
-   ```
-
-   Other names work: `fce` needs neither repo beside the other, and only `make test-fork` and `make test-live` here use a scaffold checkout, the one `FCE_SCAFFOLD` names.
-
-2. Install `fce` with `make install` in this repo, as [Install](#install) shows; `go install github.com/flare-foundation/fce-tooling/cmd/fce@<version>` works only once it is published.
-   Built at a tag such as `v0.1.0` with no local changes, `fce` is that release.
-   Built anywhere else, it is a development build: a fork's `fce-version` accepts it with a warning.
-3. Run it on a fork of the scaffold, as the scaffold's README describes.
-4. Report issues and open merge requests on the internal GitLab, not on GitHub.
-
 ## Install
 
+In a clone of this repo:
+
 ```bash
-make install
+go install ./cmd/fce
 ```
 
-It runs `go install ./cmd/fce`, which puts `fce` in `GOBIN`, or `GOPATH/bin` when that is unset; keep that directory on your `PATH`.
-Read the scaffold's [Before you install or run anything](https://github.com/flare-foundation/fce-go-scaffold#before-you-install-or-run-anything) first: where to get `fce`, what the repos pin, and which key to sign with.
+It puts `fce` in `GOBIN`, or `GOPATH/bin` when that is unset; keep that directory on your `PATH`.
+`make install` runs the same command.
+Built at a tag such as `v0.1.0` with no local changes, `fce` is that release; built anywhere else, it is a development build, which a fork's `fce-version` accepts with a warning.
+Install `fce` only from Flare's official repository, or read the code of any other copy before you install it.
+`fce` sends transactions signed with the keystore you give it, so a modified build can spend that account's funds.
 
 ## Commands
 
