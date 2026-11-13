@@ -95,14 +95,15 @@ func Run(ctx context.Context, cfg Config) Report {
 	}
 
 	var rep Report
-	url := "http://" + net.JoinHostPort("127.0.0.1", strconv.Itoa(extPort))
+	addr := net.JoinHostPort("127.0.0.1", strconv.Itoa(extPort))
+	url := "http://" + addr
 	if err := p.waitReady(ctx, url, startup); err != nil {
 		p.kill()
 		rep.Err = err
 	} else {
 		rep.Results = newChecker(url, node).run(ctx, cfg.Fixtures, postWait)
 		var stopErr error
-		if rep.Err, stopErr = p.stop(ctx, shutdown); rep.Err == nil {
+		if rep.Err, stopErr = p.stop(ctx, addr, shutdown); rep.Err == nil {
 			rep.Results = append(rep.Results, Result{Name: "exit code 0 after SIGTERM", Advice: stopErr})
 		}
 	}
@@ -164,7 +165,15 @@ func (p *process) waitReady(ctx context.Context, url string, limit time.Duration
 
 // stop sends SIGTERM and waits for the exit, at most limit, then kills the extension.
 // crash is set when it had exited already, or the run was cancelled; exit when it didn't exit with code 0.
-func (p *process) stop(ctx context.Context, limit time.Duration) (crash, exit error) {
+func (p *process) stop(ctx context.Context, addr string, limit time.Duration) (crash, exit error) {
+	// an exited but unreaped extension still takes SIGTERM; its closed port tells it apart
+	if refused(ctx, addr) {
+		select {
+		case <-p.exited:
+		case <-time.After(limit):
+		case <-ctx.Done():
+		}
+	}
 	select {
 	case <-p.exited:
 		return fmt.Errorf("the extension exited during the checks: %s", exitText(p.err)), nil
@@ -190,6 +199,17 @@ func (p *process) stop(ctx context.Context, limit time.Duration) (crash, exit er
 		p.kill()
 		return ctx.Err(), nil
 	}
+}
+
+// refused reports whether a connection to addr is refused: nothing listens there.
+func refused(ctx context.Context, addr string) bool {
+	d := net.Dialer{Timeout: time.Second}
+	c, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return errors.Is(err, syscall.ECONNREFUSED)
+	}
+	c.Close() //nolint:errcheck,gosec // only whether it connected matters
+	return false
 }
 
 // kill stops the extension, if still running, and waits for it.
